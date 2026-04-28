@@ -1,0 +1,139 @@
+{
+  "$schema": "./apps.schema.json",
+  "version": "2.0.0",
+  "description": "WinForge tiered package manifest. IDs follow winget and Scoop conventions; install.ps1 verifies every winget id with `winget show --id <id> --exact` at runtime, so brittle or drifting IDs degrade to a warning rather than a hard failure.",
+  "notes": [
+    "Each entry has: id (winget id, scoop name, or short tag for script/manual), source (winget|scoop|store|manual|script), optional bucket (scoop), optional script (path to a PowerShell action), notes.",
+    "Use 'optional: true' for paid, account-gated, region-locked, or sometimes-unavailable apps. install.ps1 downgrades failures to warnings.",
+    "Use 'manual: true' for apps with no reliable headless install path; install.ps1 prints instructions instead of failing.",
+    "Use 'source: script' for things that aren't packages (e.g. Scoop bootstrap, FancyZones config import, SDKMAN inside WSL, deploying Komorebi via Scoop).",
+    "Tier inventories are exact: Core 15, Power-user +20, Dev +23, AI +10. Tiers extend each other via the 'extends' field; install.ps1 walks the chain and dedupes by source:id."
+  ],
+  "scoopBuckets": [
+    "extras",
+    "main",
+    "nerd-fonts",
+    "versions"
+  ],
+  "tiers": {
+    "core": {
+      "label": "Core 15 — essentials every Windows 11 box should have",
+      "packages": [
+        { "id": "Microsoft.PowerToys",                 "source": "winget", "notes": "FancyZones, PowerRename, Run, Color Picker, Peek" },
+        { "id": "FilesCommunity.Files",                "source": "winget", "notes": "Files (Files App) — modern multi-tab Explorer alternative" },
+        { "id": "voidtools.Everything",                "source": "winget", "notes": "Sub-second filename search across the disk" },
+        { "id": "Flow-Launcher.Flow-Launcher",         "source": "winget", "notes": "Fast keystroke launcher; runtime verifies the id" },
+        { "id": "Ditto.Ditto",                          "source": "winget", "notes": "Clipboard manager with history" },
+        { "id": "ShareX.ShareX",                        "source": "winget", "notes": "Best-in-class screenshot and screen-recording tool" },
+        { "id": "7zip.7zip",                            "source": "winget", "notes": "Archive utility" },
+        { "id": "VideoLAN.VLC",                         "source": "winget", "notes": "Plays everything" },
+        { "id": "Bitwarden.Bitwarden",                  "source": "winget", "notes": "Password manager (desktop client)" },
+        { "id": "Microsoft.WindowsTerminal",            "source": "winget", "notes": "Modern Windows terminal" },
+        { "id": "Microsoft.PowerShell",                 "source": "winget", "notes": "PowerShell 7 (pwsh)" },
+        { "id": "scoop-bootstrap",                      "source": "script", "notes": "Scoop is bootstrapped by install.ps1 via the official web installer (https://get.scoop.sh); it is not a winget package." },
+        { "id": "Romanitho.Winget-AutoUpdate",          "source": "winget", "notes": "Winget-AutoUpdate (WAU) — daily background app updater. Runtime verifies the id." },
+        { "id": "TorchGM.RoundedTB",                    "source": "winget", "optional": true, "notes": "RoundedTB — taskbar tweaker. Optional: id may not be present in winget; falls back to a manual hint." },
+        { "id": "File-New-Project.EarTrumpet",          "source": "winget", "notes": "Per-app volume mixer for the system tray" }
+      ]
+    },
+    "power-user": {
+      "label": "Power-user +20 — productivity, window mgmt, system insight, sync",
+      "extends": "core",
+      "packages": [
+        { "id": "Espanso.Espanso",                      "source": "winget", "notes": "Cross-platform text expander" },
+        { "id": "AutoHotkey.AutoHotkey",                "source": "winget", "notes": "AutoHotkey v2. If id drifts upstream, runtime verification will warn; alt id: Lexikos.AutoHotkey" },
+        { "id": "fancyzones-layouts",                   "source": "script", "notes": "Imports configs/powertoys/fancyzones-layouts.json into PowerToys; deploy-configs.ps1 handles this. Requires PowerToys (Core 15)." },
+        { "id": "LGUG2Z.komorebi",                      "source": "winget", "optional": true, "notes": "Komorebi tiling window manager. Optional: id may also be available via Scoop (extras/komorebi); runtime verifies." },
+        { "id": "MicaForEveryone.MicaForEveryone",      "source": "winget", "optional": true, "notes": "Mica For Everyone — applies Mica/Acrylic to legacy windows. Runtime verifies the id." },
+        { "id": "StartIsBack.StartAllBack",             "source": "winget", "optional": true, "notes": "StartAllBack — paid (~$5). Trial works after install. Marked optional; runtime verifies the id (alt: manual install from startallback.com)." },
+        { "id": "ExplorerPatcher",                      "source": "manual", "manual": true, "notes": "ExplorerPatcher — restores classic Explorer/taskbar UI. No clean winget id; install manually from github.com/valinet/ExplorerPatcher. Carries breakage risk on Windows 11 feature updates — see docs/SAFETY.md." },
+        { "id": "Bitsum.ProcessLasso",                  "source": "winget", "notes": "Process Lasso — CPU/IO priority manager" },
+        { "id": "REALiX.HWiNFO",                        "source": "winget", "notes": "HWiNFO — deep hardware sensor reporting" },
+        { "id": "Macrium.ReflectFree",                  "source": "manual", "manual": true, "notes": "Macrium Reflect Free was discontinued. Use Macrium Reflect X (paid) from macrium.com or substitute Veeam Agent Free / Hasleo Backup Suite Free." },
+        { "id": "FreeFileSync.FreeFileSync",            "source": "winget", "notes": "Folder comparison & sync" },
+        { "id": "Obsidian.Obsidian",                    "source": "winget", "notes": "Local-first markdown notes" },
+        { "id": "Notion.Notion",                        "source": "winget", "notes": "Notes & wiki" },
+        { "id": "mosh",                                  "source": "scoop",  "bucket": "main", "optional": true, "notes": "Mosh client (mobile-shell) — Scoop install is the most reliable on Windows; runs in WSL too." },
+        { "id": "WinSCP.WinSCP",                        "source": "winget", "notes": "SFTP/SCP/FTP GUI" },
+        { "id": "TimKosse.FileZilla.Client",            "source": "winget", "notes": "FileZilla FTP client" },
+        { "id": "Rclone.Rclone",                        "source": "winget", "notes": "Cloud-storage CLI" },
+        { "id": "Syncthing.Syncthing",                  "source": "winget", "notes": "Continuous peer-to-peer file sync" },
+        { "id": "Stremio.Stremio",                      "source": "winget", "notes": "Streaming media center" },
+        { "id": "AnyDeskSoftwareGmbH.AnyDesk",          "source": "winget", "notes": "Remote desktop" }
+      ]
+    },
+    "dev": {
+      "label": "Dev +23 — toolchains, IDEs, runtimes, containers, DB GUIs",
+      "extends": "power-user",
+      "packages": [
+        { "id": "Microsoft.WSL",                        "source": "winget", "notes": "WSL 2; Ubuntu-24.04 is provisioned by install.ps1" },
+        { "id": "Docker.DockerDesktop",                 "source": "winget", "optional": true, "notes": "Requires WSL2; commercial-use license check applies" },
+        { "id": "Microsoft.VisualStudioCode",           "source": "winget", "notes": "VS Code" },
+        { "id": "vscode-extension-pack",                "source": "script", "notes": "Installs every id in vscodeExtensions[] via `code --install-extension`." },
+        { "id": "Anysphere.Cursor",                     "source": "winget", "optional": true, "notes": "Cursor — AI-first VS Code fork. Runtime verifies the id (alt: Cursor.Cursor)." },
+        { "id": "Git.Git",                              "source": "winget", "notes": "Git for Windows" },
+        { "id": "GitHub.cli",                           "source": "winget", "notes": "gh CLI" },
+        { "id": "GnuPG.Gpg4win",                        "source": "winget", "notes": "Gpg4win for commit/email signing" },
+        { "id": "Schniz.fnm",                           "source": "winget", "notes": "Fast Node Manager — installs Node toolchains on demand" },
+        { "id": "astral-sh.uv",                         "source": "winget", "notes": "Python package & venv manager" },
+        { "id": "Rustlang.Rustup",                      "source": "winget", "notes": "Rust toolchain installer" },
+        { "id": "GoLang.Go",                            "source": "winget", "notes": "Go" },
+        { "id": "sdkman-wsl",                           "source": "script", "notes": "SDKMAN is Linux/macOS only. configs/wsl/bootstrap-ubuntu.sh installs SDKMAN inside WSL Ubuntu and uses it for Java/Maven/Gradle." },
+        { "id": "Postman.Postman",                      "source": "winget", "notes": "API client" },
+        { "id": "dbeaver.dbeaver",                      "source": "winget", "notes": "Universal DB GUI" },
+        { "id": "TablePlus.TablePlus",                  "source": "winget", "optional": true, "notes": "TablePlus — Windows build is paid after trial; runtime verifies the id" },
+        { "id": "BeekeeperStudio.BeekeeperStudio",      "source": "winget", "notes": "Beekeeper Studio — open-source SQL GUI" },
+        { "id": "MongoDB.Compass.Full",                 "source": "winget", "notes": "MongoDB Compass" },
+        { "id": "Postico",                              "source": "manual", "manual": true, "notes": "Postico is macOS-only — no Windows build exists. Use DBeaver, Beekeeper Studio, or TablePlus on Windows." },
+        { "id": "ngrok.ngrok",                          "source": "winget", "notes": "ngrok tunnels" },
+        { "id": "Cloudflare.cloudflared",               "source": "winget", "notes": "Cloudflare Tunnel client" },
+        { "id": "Eugeny.Tabby",                         "source": "winget", "notes": "Tabby — cross-platform terminal" },
+        { "id": "Warp.Warp",                            "source": "winget", "optional": true, "notes": "Warp Terminal for Windows is in active development; if no stable winget id is found, runtime falls back to a manual hint pointing at app.warp.dev/download." }
+      ]
+    },
+    "ai": {
+      "label": "AI +10 — local LLMs, AI editors, voice, alternatives",
+      "extends": "dev",
+      "packages": [
+        { "id": "Ollama.Ollama",                        "source": "winget", "notes": "Local LLM runtime; `ollama run llama3.1`" },
+        { "id": "ElementLabs.LMStudio",                 "source": "winget", "optional": true, "notes": "LM Studio — GUI for local models. Runtime verifies the id (alt: LMStudio.LMStudio); falls back to a manual hint if neither resolves." },
+        { "id": "Jan",                                   "source": "manual", "manual": true, "notes": "Jan (jan.ai) — open-source local LLM client. No stable winget id at time of writing; download installer from jan.ai." },
+        { "id": "ComfyUI-portable",                     "source": "script", "optional": true, "notes": "ComfyUI portable — install.ps1 will offer to download the latest portable zip from github.com/comfyanonymous/ComfyUI/releases and unpack to %USERPROFILE%\\AI\\ComfyUI. Heavy GPU recommended." },
+        { "id": "Whispering",                            "source": "manual", "manual": true, "notes": "Whispering (github.com/braden-w/whispering) — local-first dictation. Install from the GitHub Releases page; no winget id." },
+        { "id": "WisprFlow.WisprFlow",                  "source": "winget", "optional": true, "notes": "Wispr Flow — voice-to-text. Runtime verifies the id; if missing, falls back to manual install from flowvoice.ai." },
+        { "id": "Anysphere.Cursor",                     "source": "winget", "optional": true, "notes": "Cursor (already in Dev tier — listed here for completeness; resolver dedupes by source:id so it isn't installed twice)." },
+        { "id": "Anthropic.Claude",                     "source": "winget", "optional": true, "notes": "Claude Desktop — runtime verifies the id; not yet GA in winget for all regions." },
+        { "id": "raycast-alternative-flow",             "source": "script", "notes": "Raycast has no Windows build. WinForge installs Flow Launcher (already in Core 15) as the canonical Raycast alternative. This entry is documentation only — the resolver will skip it after recording the choice in state.json." },
+        { "id": "recall-alternative",                   "source": "script", "notes": "Privacy-preserving Windows Recall alternative. WinForge does NOT auto-install any third-party recall-style timeline tool. Recommended stack (already provided by WinForge): Everything (instant file index) + PowerToys Run + Flow Launcher. Documented in docs/PACKAGES.md; nothing is forced." }
+      ]
+    }
+  },
+  "vscodeExtensions": [
+    "ms-vscode.PowerShell",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "rust-lang.rust-analyzer",
+    "golang.go",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-wsl",
+    "ms-vscode-remote.remote-containers",
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "Continue.continue",
+    "eamodio.gitlens",
+    "EditorConfig.EditorConfig",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "yzhang.markdown-all-in-one",
+    "DavidAnson.vscode-markdownlint",
+    "Gruntfuggly.todo-tree",
+    "PKief.material-icon-theme",
+    "zhuangtongfa.material-theme"
+  ],
+  "wslDistros": [
+    { "name": "Ubuntu-24.04", "default": true }
+  ]
+}

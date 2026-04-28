@@ -1,0 +1,30 @@
+{
+  "// WinForge VS Code recommended extensions": "Mirror of manifest .vscodeExtensions. Used for `code --install-extension` automation and as a 'recommendations' file when this folder is opened as a workspace.",
+  "recommendations": [
+    "ms-vscode.PowerShell",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "rust-lang.rust-analyzer",
+    "golang.go",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-wsl",
+    "ms-vscode-remote.remote-containers",
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "Continue.continue",
+    "eamodio.gitlens",
+    "EditorConfig.EditorConfig",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "yzhang.markdown-all-in-one",
+    "DavidAnson.vscode-markdownlint",
+    "Gruntfuggly.todo-tree",
+    "wakatime.vscode-wakatime",
+    "PKief.material-icon-theme",
+    "zhuangtongfa.material-theme"
+  ],
+  "unwantedRecommendations": []
+}

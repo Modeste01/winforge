@@ -1,0 +1,91 @@
+{
+  "// WinForge VS Code settings": "Sensible defaults — merged into %APPDATA%\\Code\\User\\settings.json",
+
+  "editor.fontFamily": "'CaskaydiaCove Nerd Font', 'Cascadia Code', Consolas, 'Courier New', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 13,
+  "editor.lineHeight": 1.55,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": true,
+  "editor.renderWhitespace": "selection",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.minimap.enabled": false,
+  "editor.smoothScrolling": true,
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.suggestSelection": "first",
+  "editor.inlineSuggest.enabled": true,
+
+  "workbench.colorTheme": "One Dark Pro",
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.startupEditor": "none",
+  "workbench.tree.indent": 16,
+  "workbench.editor.enablePreview": false,
+
+  "window.titleBarStyle": "custom",
+  "window.zoomLevel": 0,
+
+  "files.autoSave": "onFocusChange",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true
+  },
+
+  "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font",
+  "terminal.integrated.fontSize": 12,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": { "source": "PowerShell", "icon": "terminal-powershell" },
+    "WSL Ubuntu": { "path": "wsl.exe", "args": ["-d", "Ubuntu-24.04"], "icon": "terminal-linux" },
+    "Git Bash":   { "source": "Git Bash" }
+  },
+
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.compactFolders": false,
+
+  "[python]":     { "editor.defaultFormatter": "charliermarsh.ruff",         "editor.tabSize": 4 },
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]":       { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]":      { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[markdown]":   { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.wordWrap": "on" },
+  "[powershell]": { "editor.defaultFormatter": "ms-vscode.PowerShell",   "editor.tabSize": 4 },
+  "[rust]":       { "editor.defaultFormatter": "rust-lang.rust-analyzer" },
+  "[go]":         { "editor.defaultFormatter": "golang.go",              "editor.tabSize": 4, "editor.insertSpaces": false },
+
+  "python.analysis.typeCheckingMode": "basic",
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "go.useLanguageServer": true,
+
+  "telemetry.telemetryLevel": "off",
+  "redhat.telemetry.enabled": false,
+  "update.mode": "default",
+  "extensions.autoUpdate": true,
+
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": true,
+    "scminput": false
+  }
+}

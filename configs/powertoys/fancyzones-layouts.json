@@ -1,0 +1,80 @@
+{
+  "custom-layouts": [
+    {
+      "uuid": "{6F8E9A21-1F2D-4A7C-9C1B-3D0F6E2D8A11}",
+      "name": "WinForge Triple",
+      "type": "grid",
+      "info": {
+        "rows": 1,
+        "columns": 3,
+        "rows-percentage": [10000],
+        "columns-percentage": [2500, 5000, 2500],
+        "cell-child-map": [[0, 1, 2]],
+        "show-spacing": true,
+        "spacing": 12,
+        "sensitivity-radius": 30
+      }
+    },
+    {
+      "uuid": "{1B0C4F22-3E5D-4FA1-9C71-0E5C5C7AD832}",
+      "name": "WinForge Editor + Browser",
+      "type": "grid",
+      "info": {
+        "rows": 1,
+        "columns": 2,
+        "rows-percentage": [10000],
+        "columns-percentage": [6000, 4000],
+        "cell-child-map": [[0, 1]],
+        "show-spacing": true,
+        "spacing": 8,
+        "sensitivity-radius": 30
+      }
+    },
+    {
+      "uuid": "{C7E5F7B0-4D2A-4D8B-A8E2-5B25C0F1B833}",
+      "name": "WinForge Quad",
+      "type": "grid",
+      "info": {
+        "rows": 2,
+        "columns": 2,
+        "rows-percentage": [5000, 5000],
+        "columns-percentage": [5000, 5000],
+        "cell-child-map": [[0, 1], [2, 3]],
+        "show-spacing": true,
+        "spacing": 8,
+        "sensitivity-radius": 30
+      }
+    }
+  ],
+  "templates": [
+    {
+      "type": "rows",
+      "show-spacing": true,
+      "spacing": 8,
+      "zone-count": 3,
+      "sensitivity-radius": 30
+    },
+    {
+      "type": "columns",
+      "show-spacing": true,
+      "spacing": 8,
+      "zone-count": 3,
+      "sensitivity-radius": 30
+    },
+    {
+      "type": "grid",
+      "show-spacing": true,
+      "spacing": 8,
+      "zone-count": 4,
+      "sensitivity-radius": 30
+    },
+    {
+      "type": "priority-grid",
+      "show-spacing": true,
+      "spacing": 8,
+      "zone-count": 3,
+      "sensitivity-radius": 30
+    }
+  ],
+  "quick-layout-keys": []
+}

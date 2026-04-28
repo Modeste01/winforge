@@ -1,0 +1,37 @@
+{
+  "name": "PowerToys",
+  "description": "WinForge PowerToys baseline. Copied to %LOCALAPPDATA%\\Microsoft\\PowerToys\\settings.json. PowerToys merges with its own defaults — fields it doesn't know about are ignored safely.",
+  "startup_action": "auto",
+  "enabled": {
+    "FancyZones": true,
+    "PowerRename": true,
+    "PowerToys Run": true,
+    "Keyboard Manager": true,
+    "Image Resizer": true,
+    "File Explorer Add-ons": true,
+    "Awake": false,
+    "Color Picker": true,
+    "Find My Mouse": true,
+    "Hosts File Editor": true,
+    "Mouse Highlighter": true,
+    "Mouse Jump": true,
+    "Mouse Pointer Crosshairs": false,
+    "Paste as Plain Text": true,
+    "Peek": true,
+    "Quick Accent": true,
+    "Registry Preview": true,
+    "Screen Ruler": true,
+    "Shortcut Guide": true,
+    "Text Extractor": true,
+    "Video Conference Mute": false
+  },
+  "general": {
+    "theme": "dark",
+    "system_theme": "system",
+    "show_whats_new_after_updates": false,
+    "enable_warnings_elevated_apps": true,
+    "run_elevated": false,
+    "is_elevated": false,
+    "download_updates_automatically": true
+  }
+}

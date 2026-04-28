@@ -1,0 +1,73 @@
+# =============================================================================
+# WinForge espanso baseline — text expansions.
+# Copied to %APPDATA%\espanso\match\base.yml
+# Reload with:  espanso restart
+# =============================================================================
+matches:
+  # ---- Date / time helpers --------------------------------------------------
+  - trigger: ":date"
+    replace: "{{date}}"
+    vars:
+      - name: date
+        type: date
+        params:
+          format: "%Y-%m-%d"
+
+  - trigger: ":time"
+    replace: "{{time}}"
+    vars:
+      - name: time
+        type: date
+        params:
+          format: "%H:%M"
+
+  - trigger: ":now"
+    replace: "{{now}}"
+    vars:
+      - name: now
+        type: date
+        params:
+          format: "%Y-%m-%dT%H:%M:%S%z"
+
+  # ---- Common scaffolding ---------------------------------------------------
+  - trigger: ":sig"
+    replace: |-
+      Best,
+      Your Name
+
+  - trigger: ":shrug"
+    replace: "¯\\_(ツ)_/¯"
+
+  - trigger: ":tldr"
+    replace: "**TL;DR:** "
+
+  # ---- Code snippets --------------------------------------------------------
+  - trigger: ":pyhead"
+    replace: |-
+      from __future__ import annotations
+      import logging
+      log = logging.getLogger(__name__)
+
+  - trigger: ":psparam"
+    replace: |-
+      [CmdletBinding()]
+      param(
+          [Parameter(Mandatory)] [string]$Name
+      )
+
+  - trigger: ":mdcb"
+    replace: |-
+      ```$|$
+      ```
+
+  # ---- Markdown helpers -----------------------------------------------------
+  - trigger: ":h1"
+    replace: "# "
+  - trigger: ":h2"
+    replace: "## "
+  - trigger: ":h3"
+    replace: "### "
+
+  # ---- Email-like ----------------------------------------------------------
+  - trigger: ":me"
+    replace: "your.name@example.com"

@@ -1,0 +1,35 @@
+# Local logs and state captured during testing
+*.log
+logs/
+state.local.json
+
+# OS / editor scratch
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.vscode/.history/
+.idea/
+
+# Build / virtual env artifacts (in case scripts/* grow)
+__pycache__/
+.venv/
+venv/
+node_modules/
+dist/
+build/
+
+# PowerShell module package output
+*.nupkg
+*.snupkg
+
+# Backups produced during local dry-runs
+backups/
+*.reg.bak
+
+# Secrets — never commit
+*.env
+*.pem
+*.key
+secrets/
