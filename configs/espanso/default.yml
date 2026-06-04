@@ -1,0 +1,67 @@
+# WinForge Espanso Snippets
+# Copy to: %APPDATA%\espanso\match\winforge.yml
+
+matches:
+  - trigger: ";email"
+    replace: "your.email@example.com"
+  - trigger: ";sig"
+    replace: |
+      Best regards,
+      Modeste Houenou
+      Washington State University
+
+  - trigger: ";date"
+    replace: "{{mydate}}"
+    vars:
+      - name: mydate
+        type: date
+        params: { format: "%Y-%m-%d" }
+  - trigger: ";time"
+    replace: "{{mytime}}"
+    vars:
+      - name: mytime
+        type: date
+        params: { format: "%H:%M" }
+  - trigger: ";dt"
+    replace: "{{mydatetime}}"
+    vars:
+      - name: mydatetime
+        type: date
+        params: { format: "%Y-%m-%d %H:%M" }
+
+  - trigger: ";todo"
+    replace: "TODO: "
+  - trigger: ";fixme"
+    replace: "FIXME: "
+  - trigger: ";pdb"
+    replace: "import pdb; pdb.set_trace()"
+  - trigger: ";bp"
+    replace: "breakpoint()"
+  - trigger: ";main"
+    replace: |
+      if __name__ == "__main__":
+          main()
+  - trigger: ";log"
+    replace: "console.log();"
+
+  - trigger: ";gfeat"
+    replace: "feat: "
+  - trigger: ";gfix"
+    replace: "fix: "
+  - trigger: ";gdocs"
+    replace: "docs: "
+  - trigger: ";gchore"
+    replace: "chore: "
+  - trigger: ";gref"
+    replace: "refactor: "
+
+  - trigger: ";shrug"
+    replace: "¯\\_(ツ)_/¯"
+  - trigger: ";check"
+    replace: "✓"
+  - trigger: ";cross"
+    replace: "✗"
+  - trigger: ";arrow"
+    replace: "→"
+  - trigger: ";bullet"
+    replace: "•"

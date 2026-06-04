@@ -1,0 +1,79 @@
+{
+  "$help": "https://aka.ms/terminal-documentation",
+  "$schema": "https://aka.ms/terminal-profiles-schema",
+  "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
+  "initialCols": 120,
+  "initialRows": 30,
+  "copyOnSelect": false,
+  "copyFormatting": "none",
+  "wordDelimiters": " /\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?│",
+  "profiles": {
+    "defaults": {
+      "fontFace": "CaskaydiaCove Nerd Font",
+      "fontSize": 12,
+      "fontWeight": "normal",
+      "colorScheme": "WinForge Dark",
+      "cursorShape": "bar",
+      "scrollbarState": "hidden",
+      "padding": "8",
+      "antialiasingMode": "cleartype",
+      "useAcrylic": true,
+      "opacity": 92
+    },
+    "list": [
+      {
+        "guid": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
+        "name": "PowerShell",
+        "source": "Windows.Terminal.PowershellCore",
+        "hidden": false
+      },
+      {
+        "guid": "{2c4de342-38b7-51cf-b940-2309a097f518}",
+        "name": "Ubuntu",
+        "source": "Windows.Terminal.Wsl",
+        "hidden": false,
+        "startingDirectory": "~"
+      },
+      {
+        "guid": "{0caa0dad-35be-5f56-a8ff-afceeeaa6101}",
+        "name": "Command Prompt",
+        "commandline": "%SystemRoot%\\System32\\cmd.exe",
+        "hidden": false
+      }
+    ]
+  },
+  "schemes": [
+    {
+      "name": "WinForge Dark",
+      "background": "#171614",
+      "foreground": "#cdccca",
+      "black": "#171614",
+      "red": "#d163a7",
+      "green": "#6daa45",
+      "yellow": "#e8af34",
+      "blue": "#4f98a3",
+      "purple": "#a86fdf",
+      "cyan": "#4f98a3",
+      "white": "#cdccca",
+      "brightBlack": "#5a5957",
+      "brightRed": "#dd6974",
+      "brightGreen": "#6daa45",
+      "brightYellow": "#fdab43",
+      "brightBlue": "#5591c7",
+      "brightPurple": "#a86fdf",
+      "brightCyan": "#4f98a3",
+      "brightWhite": "#f7f6f2",
+      "cursorColor": "#4f98a3",
+      "selectionBackground": "#4f98a340"
+    }
+  ],
+  "keybindings": [
+    { "command": { "action": "splitPane", "split": "auto" }, "keys": "alt+shift+d" },
+    { "command": "closePane", "keys": "alt+shift+w" },
+    { "command": { "action": "newTab" }, "keys": "ctrl+t" },
+    { "command": "closeTab", "keys": "ctrl+w" },
+    { "command": { "action": "copy", "singleLine": false }, "keys": "ctrl+c" },
+    { "command": "paste", "keys": "ctrl+v" },
+    { "command": "find", "keys": "ctrl+shift+f" }
+  ]
+}

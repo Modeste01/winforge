@@ -1,210 +1,264 @@
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    WinForge — Windows 11 setup orchestrator.
-
+    WinForge — Windows 11 power-user setup script
 .DESCRIPTION
-    Installs a tiered set of applications, applies sensible tweaks, optionally
-    debloats consumer apps, and lays down dotfiles/configs for Windows Terminal,
-    PowerShell, VS Code, PowerToys, AutoHotkey, espanso, and WSL.
-
-    Run from an elevated PowerShell session.
-
+    Detects Windows version, prompts for tier, installs apps via winget/Scoop,
+    deploys configs, runs debloat and tweaks sub-scripts.
 .PARAMETER Tier
-    Which tier to install. One of: minimal, standard, power-user, dev, ai, all.
-    "minimal" = core only.
-    "standard" = core (alias for minimal in current build; reserved for future).
-    "power-user" = core + power-user.
-    "dev" = above + dev.
-    "ai" = above + ai.
-    "all" = ai (full chain).
-
+    Install tier: Core | PowerUser | Dev | AI
 .PARAMETER DryRun
-    Print every action that would be taken; change nothing.
-
-.PARAMETER SkipDebloat
-    Do not run scripts/debloat.ps1.
-
-.PARAMETER SkipTweaks
-    Do not run scripts/tweaks.ps1.
-
+    Preview all changes without applying them
+.PARAMETER SkipApps
+    Skip package installation
 .PARAMETER SkipConfigs
-    Do not deploy configs/* dotfiles.
-
-.PARAMETER Force
-    Override OS-version guard (e.g. run on Windows 10 or Server).
-
-.EXAMPLE
-    .\install.ps1 -Tier dev
-
-.EXAMPLE
-    .\install.ps1 -Tier ai -DryRun
-
-.NOTES
-    Logs:    %ProgramData%\WinForge\logs\winforge-<timestamp>.log
-    State:   %ProgramData%\WinForge\state.json
-    Backups: %ProgramData%\WinForge\backups\
+    Skip config file deployment
+.PARAMETER SkipDebloat
+    Skip debloat sub-script
+.PARAMETER SkipTweaks
+    Skip tweaks sub-script
+.PARAMETER NoRestore
+    Skip System Restore Point creation
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param(
-    [ValidateSet('minimal','standard','power-user','dev','ai','all')]
+    [ValidateSet('Core','PowerUser','Dev','AI')]
     [string]$Tier,
-
     [switch]$DryRun,
+    [switch]$SkipApps,
+    [switch]$SkipConfigs,
     [switch]$SkipDebloat,
     [switch]$SkipTweaks,
-    [switch]$SkipConfigs,
-    [switch]$Force
+    [switch]$NoRestore
 )
 
-$ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$script:LogFile = "$PSScriptRoot\WinForge_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$script:ScriptRoot = $PSScriptRoot
 
-# --- Resolve script root and import module -----------------------------------
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-Import-Module (Join-Path $ScriptRoot 'scripts\lib\WinForge.psm1') -Force
+function Write-Log {
+    param([string]$Msg, [string]$Level = 'INFO')
+    $line = "[$(Get-Date -Format 'HH:mm:ss')] [$Level] $Msg"
+    Add-Content -Path $script:LogFile -Value $line -ErrorAction SilentlyContinue
+    switch ($Level) {
+        'INFO'    { Write-Host $line -ForegroundColor Cyan }
+        'WARN'    { Write-Host $line -ForegroundColor Yellow }
+        'ERROR'   { Write-Host $line -ForegroundColor Red }
+        'SUCCESS' { Write-Host $line -ForegroundColor Green }
+        default   { Write-Host $line }
+    }
+}
 
-Initialize-WinForge -DryRun:$DryRun
-$paths = Get-WinForgePaths
+function Test-Admin {
+    $current = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    return $current.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
 
-Write-WinForgeBanner "WinForge — Windows 11 setup"
-Write-WinForgeLog "Repo root : $($paths.Root)"
-Write-WinForgeLog "Log file  : $($paths.LogFile)"
-Write-WinForgeLog "Dry run   : $DryRun"
+function Test-Windows11 {
+    $build = [System.Environment]::OSVersion.Version.Build
+    return $build -ge 22000
+}
 
-try {
-    Assert-WinForgePrereqs -Force:$Force
-} catch {
-    Write-WinForgeLog $_ Error
+function New-RestorePoint {
+    if ($DryRun) { Write-Log 'DryRun: would create System Restore Point' 'INFO'; return }
+    try {
+        Enable-ComputerRestore -Drive "$env:SystemDrive\"
+        Checkpoint-Computer -Description 'WinForge Pre-Install' -RestorePointType 'APPLICATION_INSTALL'
+        Write-Log 'System Restore Point created' 'SUCCESS'
+    } catch {
+        Write-Log "Restore Point failed (non-fatal): $_" 'WARN'
+    }
+}
+
+function Install-Scoop {
+    if (Get-Command scoop -ErrorAction SilentlyContinue) {
+        Write-Log 'Scoop already installed'
+        return
+    }
+    Write-Log 'Installing Scoop...'
+    if ($DryRun) { Write-Log 'DryRun: would install Scoop'; return }
+    Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+    Invoke-RestMethod get.scoop.sh | Invoke-Expression
+    scoop bucket add extras
+    scoop bucket add versions
+    Write-Log 'Scoop installed' 'SUCCESS'
+}
+
+function Install-WingetPackages {
+    param([array]$Packages)
+    foreach ($pkg in $Packages) {
+        if ($pkg.manager -eq 'scoop') {
+            Write-Log "Installing via Scoop: $($pkg.id)"
+            if (-not $DryRun) {
+                scoop install $pkg.id 2>&1 | Out-Null
+                Write-Log "Scoop installed: $($pkg.id)" 'SUCCESS'
+            }
+            continue
+        }
+        Write-Log "Installing via winget: $($pkg.id)"
+        if ($DryRun) { continue }
+        try {
+            $args = @(
+                'install',
+                '--id', $pkg.id,
+                '--exact',
+                '--silent',
+                '--accept-package-agreements',
+                '--accept-source-agreements'
+            )
+            if ($pkg.scope) { $args += '--scope'; $args += $pkg.scope }
+            winget @args 2>&1 | Out-Null
+            Write-Log "Installed: $($pkg.id)" 'SUCCESS'
+        } catch {
+            Write-Log "Failed: $($pkg.id) — $_" 'ERROR'
+        }
+    }
+}
+
+function Deploy-Configs {
+    $configRoot = Join-Path $script:ScriptRoot 'configs'
+
+    # Windows Terminal
+    $wtTarget = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter 'Microsoft.WindowsTerminal*' -ErrorAction SilentlyContinue |
+        Select-Object -First 1 | ForEach-Object { "$($_.FullName)\LocalState" }
+    if ($wtTarget) {
+        Copy-Config "$configRoot\terminal\settings.json" "$wtTarget\settings.json"
+    }
+
+    # PowerShell Profile
+    $psDir = Split-Path $PROFILE -Parent
+    if (-not (Test-Path $psDir)) { New-Item $psDir -ItemType Directory -Force | Out-Null }
+    Copy-Config "$configRoot\powershell\Microsoft.PowerShell_profile.ps1" $PROFILE
+
+    # VS Code
+    $codeUser = "$env:APPDATA\Code\User"
+    if (-not (Test-Path $codeUser)) { New-Item $codeUser -ItemType Directory -Force | Out-Null }
+    Copy-Config "$configRoot\vscode\settings.json"    "$codeUser\settings.json"
+    Copy-Config "$configRoot\vscode\keybindings.json" "$codeUser\keybindings.json"
+
+    # VS Code Extensions
+    if (Get-Command code -ErrorAction SilentlyContinue) {
+        $exts = (Get-Content "$configRoot\vscode\extensions.json" | ConvertFrom-Json).recommendations
+        foreach ($ext in $exts) {
+            Write-Log "Installing VS Code extension: $ext"
+            if (-not $DryRun) { code --install-extension $ext --force 2>&1 | Out-Null }
+        }
+    }
+
+    # AutoHotKey
+    $ahkDir = "$env:USERPROFILE\Documents\AutoHotkey"
+    if (-not (Test-Path $ahkDir)) { New-Item $ahkDir -ItemType Directory -Force | Out-Null }
+    Copy-Config "$configRoot\ahk\winforge.ahk" "$ahkDir\winforge.ahk"
+
+    # Espanso
+    $espansoDir = "$env:APPDATA\espanso\match"
+    if (-not (Test-Path $espansoDir)) { New-Item $espansoDir -ItemType Directory -Force | Out-Null }
+    Copy-Config "$configRoot\espanso\default.yml" "$espansoDir\winforge.yml"
+
+    # Starship
+    $starshipDir = "$env:USERPROFILE\.config"
+    if (-not (Test-Path $starshipDir)) { New-Item $starshipDir -ItemType Directory -Force | Out-Null }
+    Copy-Config "$configRoot\wsl\starship.toml" "$starshipDir\starship.toml"
+}
+
+function Copy-Config {
+    param([string]$Src, [string]$Dst)
+    if (-not (Test-Path $Src)) { Write-Log "Config not found: $Src" 'WARN'; return }
+    if ($DryRun) { Write-Log "DryRun: would copy $Src → $Dst"; return }
+    Copy-Item $Src $Dst -Force
+    Write-Log "Config deployed: $Dst" 'SUCCESS'
+}
+
+# ── MAIN ──────────────────────────────────────────────────────────────────────
+
+Write-Log '══════════════════════════════════════'
+Write-Log '  WinForge v1.0 — Windows 11 Setup'
+Write-Log '══════════════════════════════════════'
+
+if (-not (Test-Admin)) {
+    Write-Log 'ERROR: Must run as Administrator. Re-launch PowerShell as Admin.' 'ERROR'
     exit 1
 }
 
-# --- Interactive tier selection ----------------------------------------------
+if (-not (Test-Windows11)) {
+    Write-Log 'WARNING: Windows 11 (Build 22000+) is recommended. Continuing anyway...' 'WARN'
+}
+
+if ($DryRun) { Write-Log '*** DRY-RUN MODE — no changes will be made ***' 'WARN' }
+
+# Tier selection
 if (-not $Tier) {
     Write-Host ""
-    Write-Host "Select a tier:" -ForegroundColor Cyan
-    Write-Host "  1) minimal     — Core 15 essentials"
-    Write-Host "  2) power-user  — Core 15 + Power-user +20 (productivity, window mgmt, sync)"
-    Write-Host "  3) dev         — + Dev +23 (WSL2, Docker, VS Code, fnm, uv, Rust, Go, DB GUIs)"
-    Write-Host "  4) ai          — + AI +10 (Ollama, LM Studio, Cursor, Claude Desktop, etc.)"
-    Write-Host "  5) all         — same as ai"
-    $choice = Read-Host "Enter choice [1-5] (default 2)"
-    switch ($choice) {
-        '1' { $Tier = 'minimal' }
-        '3' { $Tier = 'dev' }
-        '4' { $Tier = 'ai' }
-        '5' { $Tier = 'all' }
-        default { $Tier = 'power-user' }
+    Write-Host "  Select install tier:" -ForegroundColor Cyan
+    Write-Host "  [1] Core        — 15 essential apps" -ForegroundColor White
+    Write-Host "  [2] PowerUser   — Core + 20 power-user apps" -ForegroundColor White
+    Write-Host "  [3] Dev         — PowerUser + 25 dev tools" -ForegroundColor White
+    Write-Host "  [4] AI          — Dev + 15 AI tools" -ForegroundColor White
+    Write-Host ""
+    $choice = Read-Host "Enter 1-4"
+    $Tier = switch ($choice) {
+        '1' { 'Core' }
+        '2' { 'PowerUser' }
+        '3' { 'Dev' }
+        '4' { 'AI' }
+        default { Write-Log 'Invalid choice, defaulting to Core' 'WARN'; 'Core' }
     }
 }
 
-$tierMap = @{
-    'minimal'    = 'core'
-    'standard'   = 'core'
-    'power-user' = 'power-user'
-    'dev'        = 'dev'
-    'ai'         = 'ai'
-    'all'        = 'ai'
-}
-$resolvedTier = $tierMap[$Tier]
-Write-WinForgeLog "Resolved tier: $Tier -> $resolvedTier" Step
+Write-Log "Selected tier: $Tier"
 
-# --- Load manifest -----------------------------------------------------------
-$manifest = Get-WinForgeManifest
-$packages = Resolve-WinForgeTier -Manifest $manifest -Tier $resolvedTier
-Write-WinForgeLog "Packages to consider: $($packages.Count)"
+# Restore point
+if (-not $NoRestore) { New-RestorePoint }
 
-# --- Restore point -----------------------------------------------------------
-New-WinForgeRestorePoint -Description "WinForge install ($Tier)"
-
-# --- Bootstrap package managers ---------------------------------------------
-Write-WinForgeBanner "Bootstrapping package managers"
-Install-WinForgeWinget
-Install-WinForgeScoop -Buckets ($manifest.scoopBuckets)
-
-# --- Install packages --------------------------------------------------------
-Write-WinForgeBanner "Installing packages ($Tier)"
-$results = New-Object System.Collections.Generic.List[object]
-foreach ($pkg in $packages) {
-    try {
-        $r = Install-WinForgePackage -Package $pkg
-        if ($r) { $results.Add($r) | Out-Null }
-    } catch {
-        Write-WinForgeLog "Exception while installing $($pkg.id): $_" Error
+# Install apps
+if (-not $SkipApps) {
+    Install-Scoop
+    $tierMap = @{
+        'Core'      = @('core')
+        'PowerUser' = @('core','poweruser')
+        'Dev'       = @('core','poweruser','dev')
+        'AI'        = @('core','poweruser','dev','ai')
     }
+    $allPackages = @()
+    foreach ($t in $tierMap[$Tier]) {
+        $jsonPath = Join-Path $script:ScriptRoot "tiers\${t}.json"
+        if (Test-Path $jsonPath) {
+            $allPackages += Get-Content $jsonPath | ConvertFrom-Json
+        }
+    }
+    Write-Log "Installing $($allPackages.Count) packages..."
+    Install-WingetPackages -Packages $allPackages
 }
 
-# --- Summary table -----------------------------------------------------------
-Write-WinForgeBanner "Package install summary"
-$grouped = $results | Group-Object Status
-foreach ($g in $grouped) {
-    Write-WinForgeLog ("{0,-20} {1}" -f $g.Name, $g.Count)
-}
-$results | Export-Csv -Path (Join-Path $paths.Logs ('package-results-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.csv')) -NoTypeInformation
-
-# --- Tweaks ------------------------------------------------------------------
-if (-not $SkipTweaks) {
-    Write-WinForgeBanner "Applying tweaks"
-    & (Join-Path $ScriptRoot 'scripts\tweaks.ps1') -Mode Apply -DryRun:$DryRun
-} else {
-    Write-WinForgeLog "Skipping tweaks (--SkipTweaks)" Warn
-}
-
-# --- Debloat -----------------------------------------------------------------
-if (-not $SkipDebloat) {
-    Write-WinForgeBanner "Debloating consumer apps"
-    & (Join-Path $ScriptRoot 'scripts\debloat.ps1') -Mode Apply -DryRun:$DryRun
-} else {
-    Write-WinForgeLog "Skipping debloat (--SkipDebloat)" Warn
-}
-
-# --- Configs -----------------------------------------------------------------
+# Configs
 if (-not $SkipConfigs) {
-    Write-WinForgeBanner "Deploying configs"
-    & (Join-Path $ScriptRoot 'scripts\deploy-configs.ps1') -DryRun:$DryRun
-} else {
-    Write-WinForgeLog "Skipping configs (--SkipConfigs)" Warn
+    Write-Log 'Deploying configuration files...'
+    Deploy-Configs
 }
 
-# --- VS Code extensions ------------------------------------------------------
-if (-not $SkipConfigs -and (Test-Command code)) {
-    Write-WinForgeBanner "Installing VS Code extensions"
-    foreach ($ext in $manifest.vscodeExtensions) {
-        if ($DryRun) {
-            Write-WinForgeLog "Would install code extension $ext" DryRun
-        } else {
-            Write-WinForgeLog "code --install-extension $ext"
-            try { & code --install-extension $ext --force 2>&1 | Out-Null } catch { Write-WinForgeLog "ext failed: $ext" Warn }
-        }
+# Debloat
+if (-not $SkipDebloat) {
+    $debloatScript = Join-Path $script:ScriptRoot 'scripts\debloat.ps1'
+    if (Test-Path $debloatScript) {
+        Write-Log 'Running debloat script...'
+        if (-not $DryRun) { & $debloatScript }
+        else { Write-Log 'DryRun: would run debloat.ps1' }
     }
 }
 
-# --- WSL bootstrap -----------------------------------------------------------
-if ($resolvedTier -in @('dev','ai')) {
-    Write-WinForgeBanner "Provisioning WSL2 + Ubuntu"
-    if ($DryRun) {
-        Write-WinForgeLog "Would run wsl --install -d Ubuntu-24.04 and copy bootstrap-ubuntu.sh" DryRun
-    } else {
-        try {
-            wsl --set-default-version 2 2>&1 | Out-Null
-            $existing = (wsl -l -q) 2>&1
-            if ($existing -notmatch 'Ubuntu') {
-                Write-WinForgeLog "Installing Ubuntu via WSL — a reboot may be required."
-                wsl --install -d Ubuntu-24.04 --no-launch
-            } else {
-                Write-WinForgeLog "WSL distro already installed: $existing" Ok
-            }
-            $bootstrap = Join-Path $ScriptRoot 'configs\wsl\bootstrap-ubuntu.sh'
-            if (Test-Path $bootstrap) {
-                Write-WinForgeLog "Bootstrap script ready at: $bootstrap"
-                Write-WinForgeLog "After first WSL launch, run: wsl -- bash /mnt/$(((Get-Location).Drive.Name).ToLower())/.../winforge/configs/wsl/bootstrap-ubuntu.sh" Step
-            }
-        } catch {
-            Write-WinForgeLog "WSL provisioning failed: $_" Warn
-        }
+# Tweaks
+if (-not $SkipTweaks) {
+    $tweaksScript = Join-Path $script:ScriptRoot 'scripts\tweaks.ps1'
+    if (Test-Path $tweaksScript) {
+        Write-Log 'Running tweaks script...'
+        if (-not $DryRun) { & $tweaksScript }
+        else { Write-Log 'DryRun: would run tweaks.ps1' }
     }
 }
 
-Write-WinForgeBanner "WinForge complete"
-Write-WinForgeLog "Log file : $($paths.LogFile)" Ok
-Write-WinForgeLog "State    : $($paths.StateFile)" Ok
-Write-WinForgeLog "Reboot recommended to finalize." Warn
+Write-Log '══════════════════════════════════════' 'SUCCESS'
+Write-Log "  WinForge setup complete!" 'SUCCESS'
+Write-Log "  Log: $script:LogFile" 'SUCCESS'
+Write-Log '══════════════════════════════════════' 'SUCCESS'
+Write-Log 'Restart your machine to apply all changes.' 'WARN'

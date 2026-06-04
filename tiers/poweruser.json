@@ -1,0 +1,22 @@
+[
+  { "id": "Espanso.Espanso",                     "name": "Espanso",          "manager": "winget" },
+  { "id": "AutoHotkey.AutoHotkey",               "name": "AutoHotKey v2",    "manager": "winget" },
+  { "id": "LGUG2Z.komorebi",                      "name": "Komorebi",         "manager": "winget" },
+  { "id": "MicaForEveryone.MicaForEveryone",     "name": "MicaForEveryone",  "manager": "winget" },
+  { "id": "StartIsBack.StartAllBack",            "name": "StartAllBack",     "manager": "winget" },
+  { "id": "valinet.ExplorerPatcher",             "name": "ExplorerPatcher",  "manager": "winget" },
+  { "id": "BitSum.ProcessLasso",                 "name": "Process Lasso",    "manager": "winget" },
+  { "id": "REALiX.HWiNFO",                      "name": "HWiNFO64",         "manager": "winget" },
+  { "id": "Macrium.Reflect.Free",               "name": "Macrium Reflect",  "manager": "winget" },
+  { "id": "FreeFileSync.FreeFileSync",           "name": "FreeFileSync",     "manager": "winget" },
+  { "id": "Obsidian.Obsidian",                   "name": "Obsidian",         "manager": "winget" },
+  { "id": "Notion.Notion",                        "name": "Notion",           "manager": "winget" },
+  { "id": "WinSCP.WinSCP",                       "name": "WinSCP",           "manager": "winget" },
+  { "id": "TimKosse.FileZilla.Client",           "name": "FileZilla",        "manager": "winget" },
+  { "id": "Rclone.Rclone",                       "name": "Rclone",           "manager": "winget" },
+  { "id": "Syncthing.Syncthing",                 "name": "Syncthing",        "manager": "winget" },
+  { "id": "Stremio.Stremio",                     "name": "Stremio",          "manager": "winget" },
+  { "id": "AnyDeskSoftwareGmbH.AnyDesk",        "name": "AnyDesk",          "manager": "winget" },
+  { "id": "Microsoft.Mosh",                      "name": "Mosh",             "manager": "winget" },
+  { "id": "Microsoft.PowerToys",                 "name": "PowerToys (FancyZones)", "manager": "winget" }
+]

@@ -1,0 +1,17 @@
+[
+  { "id": "Ollama.Ollama",              "name": "Ollama",            "manager": "winget" },
+  { "id": "LM-Studio.LM-Studio",        "name": "LM Studio",         "manager": "winget" },
+  { "id": "Janhq.Jan",                  "name": "Jan",               "manager": "winget" },
+  { "id": "comfyanonymous.ComfyUI",     "name": "ComfyUI",           "manager": "winget" },
+  { "id": "Anthropic.Claude",           "name": "Claude Desktop",    "manager": "winget" },
+  { "id": "Cursor.Cursor",              "name": "Cursor",            "manager": "winget" },
+  { "id": "Flow-Launcher.Flow-Launcher","name": "Flow Launcher",     "manager": "winget" },
+  { "id": "Whisper.Whispering",         "name": "Whispering",        "manager": "winget" },
+  { "id": "th-ch.YouTubeMusic",         "name": "YouTube Music",     "manager": "winget" },
+  { "id": "mikf.gallery-dl",            "name": "gallery-dl",        "manager": "scoop" },
+  { "id": "yt-dlp",                     "name": "yt-dlp",            "manager": "scoop" },
+  { "id": "ffmpeg",                     "name": "FFmpeg",            "manager": "scoop" },
+  { "id": "Python.Python.3.12",         "name": "Python 3.12",       "manager": "winget" },
+  { "id": "OpenAI.OpenAI",              "name": "OpenAI Desktop",    "manager": "winget" },
+  { "id": "Microsoft.Sysinternals.Suite","name": "Sysinternals",     "manager": "winget" }
+]

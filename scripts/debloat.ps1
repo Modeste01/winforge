@@ -1,128 +1,116 @@
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Reversible Windows 11 debloat — Apply and Restore modes.
-
+    WinForge Debloat — removes Windows 11 bloat and disables telemetry
 .DESCRIPTION
-    - Apply: removes Appx packages whose names match patterns in
-      manifests/appx-allowlist.json -> debloatCandidates AND are NOT in neverRemove.
-      Records every removed package + its provisioning state in state.json so
-      Restore mode can reinstall them from the original source where possible.
-    - Restore: re-registers / re-provisions previously removed Appx packages.
-      Note: full reinstallation may require Microsoft Store; we use a best-effort
-      Add-AppxPackage from %ProgramFiles%\WindowsApps when bits remain on disk.
-
-    Microsoft Edge is **never** removed (per Microsoft policy and to avoid breaking
-    OS components).
-
-.PARAMETER Mode
-    Apply | Restore | List
-
-.PARAMETER DryRun
-    Print actions without changing system state.
+    Reversible: all registry keys backed up to WinForge_Backups\ before changes.
 #>
-[CmdletBinding()]
-param(
-    [ValidateSet('Apply','Restore','List')] [string]$Mode = 'Apply',
-    [switch]$DryRun
+[CmdletBinding(SupportsShouldProcess)]
+param([switch]$DryRun)
+
+$backupDir = "$PSScriptRoot\..\WinForge_Backups\registry_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+
+function Backup-Registry {
+    param([string]$Path, [string]$Name)
+    if ($DryRun) { return }
+    if (-not (Test-Path $backupDir)) { New-Item $backupDir -ItemType Directory -Force | Out-Null }
+    try {
+        reg export $Path "$backupDir\${Name}.reg" /y 2>&1 | Out-Null
+    } catch {}
+}
+
+function Remove-AppxSafe {
+    param([string]$Name)
+    Get-AppxPackage -AllUsers -Name "*$Name*" -ErrorAction SilentlyContinue |
+        Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+    Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+        Where-Object { $_.PackageName -like "*$Name*" } |
+        Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null
+    Write-Host "  Removed: $Name" -ForegroundColor Green
+}
+
+function Set-RegistryValue {
+    param([string]$Path, [string]$Name, $Value, [string]$Type = 'DWord')
+    if ($DryRun) { Write-Host "DryRun: $Path\$Name = $Value"; return }
+    if (-not (Test-Path $Path)) { New-Item $Path -Force | Out-Null }
+    Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -ErrorAction SilentlyContinue
+}
+
+Write-Host "WinForge Debloat" -ForegroundColor Cyan
+
+# ── Remove bloat apps ─────────────────────────────────────────────────────────
+$bloat = @(
+    'Microsoft.BingWeather',
+    'Microsoft.BingNews',
+    'Microsoft.BingFinance',
+    'Microsoft.BingSports',
+    'Microsoft.BingSearch',
+    'Microsoft.GetHelp',
+    'Microsoft.Getstarted',
+    'Microsoft.MicrosoftSolitaireCollection',
+    'Microsoft.MicrosoftOfficeHub',
+    'Microsoft.Office.OneNote',
+    'Microsoft.OneConnect',
+    'Microsoft.People',
+    'Microsoft.SkypeApp',
+    'Microsoft.Todos',
+    'Microsoft.WindowsFeedbackHub',
+    'Microsoft.WindowsMaps',
+    'Microsoft.XboxApp',
+    'Microsoft.XboxGameOverlay',
+    'Microsoft.XboxGamingOverlay',
+    'Microsoft.XboxIdentityProvider',
+    'Microsoft.XboxSpeechToTextOverlay',
+    'Microsoft.YourPhone',
+    'Microsoft.ZuneMusic',
+    'Microsoft.ZuneVideo',
+    'Clipchamp.Clipchamp',
+    'MicrosoftTeams',
+    'Microsoft.WindowsCommunicationsApps'
 )
 
-$ErrorActionPreference = 'Stop'
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoRoot   = Split-Path -Parent $ScriptRoot
-Import-Module (Join-Path $RepoRoot 'scripts\lib\WinForge.psm1') -Force
-Initialize-WinForge -DryRun:$DryRun
-
-$allowlistPath = Join-Path $RepoRoot 'manifests\appx-allowlist.json'
-$allow = Get-Content -Raw $allowlistPath | ConvertFrom-Json
-
-function Test-MatchAny {
-    param([string]$Name, [string[]]$Patterns)
-    foreach ($p in $Patterns) {
-        if ($Name -like $p) { return $true }
-    }
-    return $false
+Write-Host "Removing $($bloat.Count) bloat apps..." -ForegroundColor Cyan
+if (-not $DryRun) {
+    foreach ($app in $bloat) { Remove-AppxSafe $app }
+} else {
+    $bloat | ForEach-Object { Write-Host "DryRun: would remove $_" }
 }
 
-switch ($Mode) {
-    'List' {
-        Write-WinForgeBanner "Installed Appx packages"
-        Get-AppxPackage -AllUsers | Sort-Object Name | Select-Object Name, Publisher | Format-Table -AutoSize
-        return
-    }
-    'Apply' {
-        Write-WinForgeBanner "Debloat: removing matching Appx packages"
-        New-WinForgeRestorePoint -Description "WinForge debloat"
+# ── Disable Cortana ───────────────────────────────────────────────────────────
+Backup-Registry 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search' 'cortana'
+Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search' 'AllowCortana' 0
+Write-Host "  Cortana disabled" -ForegroundColor Green
 
-        $candidates = $allow.debloatCandidates
-        $never      = $allow.neverRemove
-        $installed  = Get-AppxPackage -AllUsers
-        $provisioned = Get-AppxProvisionedPackage -Online
+# ── Disable Edge Desktop Search Bar ──────────────────────────────────────────
+Backup-Registry 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' 'edge'
+Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' 'WebWidgetAllowed' 0
+Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' 'HideFirstRunExperience' 1
+Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Edge' 'DefaultBrowserSettingEnabled' 0
 
-        $removed = New-Object System.Collections.Generic.List[string]
+# ── Disable Telemetry ─────────────────────────────────────────────────────────
+Backup-Registry 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection' 'telemetry'
+Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection' 'AllowTelemetry' 0
+Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection' 'AllowTelemetry' 0
+Write-Host "  Telemetry minimized" -ForegroundColor Green
 
-        foreach ($pkg in $installed) {
-            if (Test-MatchAny -Name $pkg.Name -Patterns $never) { continue }
-            if (-not (Test-MatchAny -Name $pkg.Name -Patterns $candidates)) { continue }
+# ── Disable Bing in Start Menu ────────────────────────────────────────────────
+Backup-Registry 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search' 'bing_search'
+Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search' 'BingSearchEnabled' 0
+Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search' 'CortanaConsent' 0
+Write-Host "  Bing Start search disabled" -ForegroundColor Green
 
-            if ($DryRun) {
-                Write-WinForgeLog "Would remove Appx: $($pkg.Name)" DryRun
-                continue
-            }
-
-            try {
-                Write-WinForgeLog "Removing Appx: $($pkg.Name)" Step
-                Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
-                Add-WinForgeStateAppx -Name $pkg.Name
-                $removed.Add($pkg.Name) | Out-Null
-            } catch {
-                Write-WinForgeLog "Failed to remove $($pkg.Name): $_" Warn
-            }
-        }
-
-        # De-provision so new accounts don't get them back.
-        foreach ($pp in $provisioned) {
-            if (Test-MatchAny -Name $pp.DisplayName -Patterns $never) { continue }
-            if (-not (Test-MatchAny -Name $pp.DisplayName -Patterns $candidates)) { continue }
-            if ($DryRun) {
-                Write-WinForgeLog "Would deprovision: $($pp.DisplayName)" DryRun
-                continue
-            }
-            try {
-                Remove-AppxProvisionedPackage -Online -PackageName $pp.PackageName -ErrorAction Stop | Out-Null
-                Write-WinForgeLog "Deprovisioned $($pp.DisplayName)" Ok
-            } catch {
-                Write-WinForgeLog "Could not deprovision $($pp.DisplayName): $_" Warn
-            }
-        }
-
-        Write-WinForgeLog ("Debloat complete. Removed {0} package(s)." -f $removed.Count) Ok
-    }
-    'Restore' {
-        Write-WinForgeBanner "Debloat: restore mode"
-        $state = Get-WinForgeState
-        if (-not $state -or -not $state.PSObject.Properties['appxRemoved'] -or -not $state.appxRemoved) {
-            Write-WinForgeLog "No debloat records found in state.json — nothing to restore." Warn
-            return
-        }
-        foreach ($name in $state.appxRemoved) {
-            if ($DryRun) {
-                Write-WinForgeLog "Would attempt to reinstall $name (Store)" DryRun
-                continue
-            }
-            Write-WinForgeLog "Attempting to reinstall $name via Store registration..." Step
-            $manifest = Get-ChildItem "$env:ProgramFiles\WindowsApps" -Recurse -Filter AppxManifest.xml -ErrorAction SilentlyContinue |
-                Where-Object { $_.FullName -match [regex]::Escape($name) } |
-                Select-Object -First 1
-            if ($manifest) {
-                try {
-                    Add-AppxPackage -DisableDevelopmentMode -Register $manifest.FullName -ErrorAction Stop
-                    Write-WinForgeLog "Re-registered $name" Ok
-                } catch {
-                    Write-WinForgeLog "Re-register failed for ${name}: $_  (install manually from Microsoft Store)" Warn
-                }
-            } else {
-                Write-WinForgeLog "Manifest for $name not found on disk. Install from Microsoft Store." Warn
-            }
-        }
-    }
+# ── Disable ads and suggestions ───────────────────────────────────────────────
+Backup-Registry 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' 'ads'
+$adKeys = @(
+    'ContentDeliveryAllowed', 'OemPreInstalledAppsEnabled',
+    'PreInstalledAppsEnabled', 'PreInstalledAppsEverEnabled',
+    'SilentInstalledAppsEnabled', 'SubscribedContent-338387Enabled',
+    'SubscribedContent-338388Enabled', 'SubscribedContent-338389Enabled',
+    'SubscribedContent-353698Enabled', 'SystemPaneSuggestionsEnabled'
+)
+foreach ($key in $adKeys) {
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager' $key 0
 }
+Write-Host "  Ads and suggestions disabled" -ForegroundColor Green
+
+Write-Host "Debloat complete. Backups saved to: $backupDir" -ForegroundColor Cyan

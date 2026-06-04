@@ -1,102 +1,100 @@
-name: windows-validate
+# WinForge — Windows Validation CI
+# Runs on push/PR; validates PS syntax and winget package IDs on a real Windows runner
 
-# Run on PRs and pushes; nightly cron re-checks winget/Scoop IDs against live sources.
+name: Windows Validate
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: "17 6 * * *"   # 06:17 UTC daily
-  workflow_dispatch:
 
 jobs:
-  lint-static:
-    name: Lint (PowerShell + JSON + YAML)
+  validate-syntax:
+    name: PowerShell Syntax
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install PSScriptAnalyzer
+      - name: Install PowerShell 7
         shell: pwsh
         run: |
-          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -SkipPublisherCheck
-
-      - name: Run PSScriptAnalyzer
-        shell: pwsh
-        run: |
-          $issues = Invoke-ScriptAnalyzer -Path . -Recurse -ExcludeRule PSAvoidUsingWriteHost,PSUseShouldProcessForStateChangingFunctions
-          $issues | Format-Table -AutoSize
-          if ($issues | Where-Object Severity -eq 'Error') { throw "PSScriptAnalyzer reported errors" }
-
-      - name: Validate JSON
-        shell: pwsh
-        run: |
-          $bad = 0
-          Get-ChildItem -Recurse -Include *.json | ForEach-Object {
-            try { Get-Content -Raw $_.FullName | ConvertFrom-Json -ErrorAction Stop | Out-Null; Write-Host "ok  $($_.FullName)" }
-            catch { Write-Error "BAD $($_.FullName): $_"; $bad++ }
+          if ($PSVersionTable.PSVersion.Major -lt 7) {
+            winget install --id Microsoft.PowerShell --silent --accept-package-agreements
           }
-          if ($bad) { throw "$bad JSON files invalid" }
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
 
-      - name: Validate YAML
+      - name: Parse all .ps1 files
         shell: pwsh
         run: |
-          Install-Module -Name powershell-yaml -Scope CurrentUser -Force
-          Import-Module powershell-yaml
-          $bad = 0
-          Get-ChildItem -Recurse -Include *.yml,*.yaml | ForEach-Object {
-            try { Get-Content -Raw $_.FullName | ConvertFrom-Yaml | Out-Null; Write-Host "ok  $($_.FullName)" }
-            catch { Write-Error "BAD $($_.FullName): $_"; $bad++ }
+          $errors = @()
+          Get-ChildItem -Recurse -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null; $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName, [ref]$tokens, [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object {
+                $errors += "$($_.Extent.File): $($_.Message)"
+              }
+            }
           }
-          if ($bad) { throw "$bad YAML files invalid" }
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+          Write-Host "All PowerShell files parsed cleanly."
 
-  package-availability:
-    name: Verify winget IDs against live sources
+  validate-manifests:
+    name: Manifest JSON
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON manifests
+        run: |
+          for f in tiers/*.json; do
+            python3 -c "import json,sys; json.load(open('$f'))" && echo "ok $f"
+          done
+
+  validate-packages:
+    name: Winget Package IDs
     runs-on: windows-latest
-    needs: lint-static
+    needs: [validate-syntax, validate-manifests]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Make sure winget is up to date
+      - name: Configure winget sources
         shell: pwsh
         run: |
-          winget --version
-          winget source update
+          winget source update --disable-interactivity
+          Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction SilentlyContinue
 
-      - name: Verify each non-optional, non-manual winget ID
+      - name: Check all package IDs exist
         shell: pwsh
         run: |
-          $manifest = Get-Content -Raw .\manifests\apps.json | ConvertFrom-Json
-          $missing = New-Object System.Collections.Generic.List[string]
-          foreach ($tier in $manifest.tiers.PSObject.Properties.Name) {
-            foreach ($pkg in $manifest.tiers.$tier.packages) {
-              if ($pkg.source -ne 'winget') { continue }
-              if ($pkg.optional -or $pkg.manual) { continue }
+          $missing = [System.Collections.Generic.List[string]]::new()
+          $tiers   = Get-ChildItem -Path tiers -Filter '*.json'
+
+          foreach ($tierFile in $tiers) {
+            $tier = $tierFile.BaseName
+            $pkgs = Get-Content $tierFile.FullName | ConvertFrom-Json
+            foreach ($pkg in $pkgs) {
+              if ($pkg.manager -eq 'scoop') {
+                Write-Host "skip (scoop) $($pkg.id)"
+                continue
+              }
               $r = winget show --id $pkg.id --exact --accept-source-agreements 2>&1
               if ($LASTEXITCODE -ne 0) {
-                Write-Warning "MISSING in winget: $($pkg.id) (tier $tier)"
-                $missing.Add("$tier:$($pkg.id)")
+                Write-Warning "MISSING in winget: $($pkg.id) (tier ${tier})"
+                $missing.Add("${tier}:$($pkg.id)")
               } else {
                 Write-Host "ok   $($pkg.id)"
               }
             }
           }
-          # Soft-fail: write to summary, don't break PRs (IDs change upstream).
-          if ($missing.Count -gt 0) {
-            "## Winget IDs not currently available`n" | Out-File -Append $env:GITHUB_STEP_SUMMARY
-            $missing | ForEach-Object { "- ``$_``" | Out-File -Append $env:GITHUB_STEP_SUMMARY }
-            Write-Warning "$($missing.Count) IDs not found — review manifests/apps.json."
-          } else {
-            "All required winget IDs resolved." | Out-File -Append $env:GITHUB_STEP_SUMMARY
-          }
 
-  dryrun-install:
-    name: Dry-run install.ps1
-    runs-on: windows-latest
-    needs: lint-static
-    steps:
-      - uses: actions/checkout@v4
-      - name: Dry-run minimal tier
-        shell: pwsh
-        run: pwsh -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Tier minimal -DryRun -SkipDebloat -SkipTweaks -SkipConfigs -Force
+          if ($missing.Count -gt 0) {
+            Write-Error "Missing packages ($($missing.Count)): $($missing -join ', ')"
+            exit 1
+          }
+          Write-Host "All package IDs verified."

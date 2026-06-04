@@ -1,178 +1,86 @@
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Apply or revert opinionated Windows 11 tweaks. Every tweak backs up the
-    affected registry key to %ProgramData%\WinForge\backups before changing it.
-
-.PARAMETER Mode
-    Apply | Revert
-
-.PARAMETER DryRun
-    Print actions; change nothing.
-
-.NOTES
-    Tweaks chosen are conservative — visual quality-of-life and developer
-    ergonomics. Nothing here disables Defender, telemetry baselines required
-    by Windows Update, or other security-critical components.
+    WinForge Tweaks — registry tweaks for performance, Explorer, taskbar, privacy
+.DESCRIPTION
+    Reversible: all registry keys backed up to WinForge_Backups\ before changes.
 #>
-[CmdletBinding()]
-param(
-    [ValidateSet('Apply','Revert')] [string]$Mode = 'Apply',
-    [switch]$DryRun
-)
+[CmdletBinding(SupportsShouldProcess)]
+param([switch]$DryRun)
 
-$ErrorActionPreference = 'Stop'
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoRoot   = Split-Path -Parent $ScriptRoot
-Import-Module (Join-Path $RepoRoot 'scripts\lib\WinForge.psm1') -Force
-Initialize-WinForge -DryRun:$DryRun
+$backupDir = "$PSScriptRoot\..\WinForge_Backups\tweaks_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
 
-# A list of tweak descriptors. Each one knows how to Apply itself and how to Revert.
-$tweaks = @(
-    @{
-        name = 'Show file extensions'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'HideFileExt'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Show hidden files'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'Hidden'
-        applyValue = 1
-        type = 'DWord'
-    },
-    @{
-        name = 'Taskbar align left'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'TaskbarAl'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Disable taskbar widgets'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'TaskbarDa'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Disable taskbar chat'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'TaskbarMn'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Compact mode in Explorer'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'UseCompactMode'
-        applyValue = 1
-        type = 'DWord'
-    },
-    @{
-        name = 'Dark mode (apps)'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-        name2 = 'AppsUseLightTheme'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Dark mode (system)'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-        name2 = 'SystemUsesLightTheme'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Disable Bing search in Start'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
-        name2 = 'BingSearchEnabled'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Disable web results in Start'
-        path = 'HKCU:\Software\Policies\Microsoft\Windows\Explorer'
-        name2 = 'DisableSearchBoxSuggestions'
-        applyValue = 1
-        type = 'DWord'
-    },
-    @{
-        name = 'Show seconds in taskbar clock'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        name2 = 'ShowSecondsInSystemClock'
-        applyValue = 1
-        type = 'DWord'
-    },
-    @{
-        name = 'Disable startup boost noise (advertising ID)'
-        path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo'
-        name2 = 'Enabled'
-        applyValue = 0
-        type = 'DWord'
-    },
-    @{
-        name = 'Long paths enabled'
-        path = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
-        name2 = 'LongPathsEnabled'
-        applyValue = 1
-        type = 'DWord'
-    },
-    @{
-        name = 'Developer Mode (sideload + symlinks)'
-        path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
-        name2 = 'AllowDevelopmentWithoutDevLicense'
-        applyValue = 1
-        type = 'DWord'
-    }
-)
-
-switch ($Mode) {
-    'Apply' {
-        Write-WinForgeBanner "Tweaks: applying $($tweaks.Count) tweaks"
-        foreach ($t in $tweaks) {
-            $backup = Backup-WinForgeRegistryKey -Path $t.path -Tag 'tweak'
-            $oldValue = $null
-            try { $oldValue = (Get-ItemProperty -Path $t.path -Name $t.name2 -ErrorAction Stop).$($t.name2) } catch {}
-            Set-WinForgeRegistryValue -Path $t.path -Name $t.name2 -Value $t.applyValue -Type $t.type
-            Write-WinForgeLog "$($t.name): $oldValue -> $($t.applyValue)" Ok
-            Add-WinForgeStateTweak -Name $t.name -BackupRef @{
-                path = $t.path
-                value = $t.name2
-                oldValue = $oldValue
-                type = $t.type
-                backupFile = $backup
-            }
-        }
-        Write-WinForgeLog "Tweaks applied. Restart Explorer to see UI changes." Warn
-        if (-not $DryRun) {
-            try { Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue } catch {}
-        }
-    }
-    'Revert' {
-        Write-WinForgeBanner "Tweaks: reverting from state.json"
-        $state = Get-WinForgeState
-        if (-not $state -or -not $state.PSObject.Properties['tweaksApplied'] -or -not $state.tweaksApplied) {
-            Write-WinForgeLog "No tweaks recorded — nothing to revert." Warn
-            return
-        }
-        foreach ($entry in $state.tweaksApplied) {
-            $b = $entry.backup
-            if ($null -eq $b.oldValue) {
-                if ($DryRun) {
-                    Write-WinForgeLog "Would remove $($b.path)\$($b.value)" DryRun
-                } else {
-                    try { Remove-ItemProperty -Path $b.path -Name $b.value -ErrorAction Stop; Write-WinForgeLog "Cleared $($entry.name)" Ok }
-                    catch { Write-WinForgeLog "Could not clear $($entry.name): $_" Warn }
-                }
-            } else {
-                Set-WinForgeRegistryValue -Path $b.path -Name $b.value -Value $b.oldValue -Type $b.type
-                Write-WinForgeLog "Reverted $($entry.name) -> $($b.oldValue)" Ok
-            }
-        }
-        if (-not $DryRun) {
-            try { Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue } catch {}
-        }
-    }
+function Backup-Registry {
+    param([string]$Path, [string]$Name)
+    if ($DryRun) { return }
+    if (-not (Test-Path $backupDir)) { New-Item $backupDir -ItemType Directory -Force | Out-Null }
+    try { reg export $Path "$backupDir\${Name}.reg" /y 2>&1 | Out-Null } catch {}
 }
+
+function Set-Reg {
+    param([string]$Path, [string]$Name, $Value, [string]$Type = 'DWord')
+    if ($DryRun) { Write-Host "DryRun: $Path\$Name = $Value"; return }
+    if (-not (Test-Path $Path)) { New-Item $Path -Force | Out-Null }
+    Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -ErrorAction SilentlyContinue
+}
+
+Write-Host "WinForge Tweaks" -ForegroundColor Cyan
+
+# ── Explorer ──────────────────────────────────────────────────────────────────
+Backup-Registry 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'explorer'
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'HideFileExt'          0  # Show file extensions
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'Hidden'               1  # Show hidden files
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'ShowSuperHidden'      0  # Hide system files (safe)
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'LaunchTo'             1  # Open Explorer to This PC
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'NavPaneExpandToCurrentFolder' 1
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'NavPaneShowAllFolders' 1
+Write-Host "  Explorer tweaks applied" -ForegroundColor Green
+
+# ── Taskbar ───────────────────────────────────────────────────────────────────
+Backup-Registry 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'taskbar'
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'TaskbarSmallIcons'  0
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'ShowTaskViewButton' 0  # Hide Task View button
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'ShowCopilotButton'  0  # Hide Copilot button
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' 'SearchboxTaskbarMode' 1             # Search icon only
+Write-Host "  Taskbar tweaks applied" -ForegroundColor Green
+
+# ── Performance ───────────────────────────────────────────────────────────────
+Backup-Registry 'HKCU:\Control Panel\Desktop' 'desktop'
+Set-Reg 'HKCU:\Control Panel\Desktop' 'MenuShowDelay' '0' 'String'
+Set-Reg 'HKCU:\Control Panel\Desktop' 'WaitToKillAppTimeout' '2000' 'String'
+Set-Reg 'HKCU:\Control Panel\Desktop' 'HungAppTimeout' '1000' 'String'
+Set-Reg 'HKCU:\Control Panel\Desktop\WindowMetrics' 'MinAnimate' '0' 'String'
+
+# Set High Performance power plan
+if (-not $DryRun) {
+    powercfg -setactive SCHEME_MIN 2>&1 | Out-Null
+    Write-Host "  Power plan set to High Performance" -ForegroundColor Green
+}
+
+# NumLock on at startup
+Set-Reg 'HKCU:\Control Panel\Keyboard' 'InitialKeyboardIndicators' 2
+Write-Host "  NumLock on at startup" -ForegroundColor Green
+
+# ── Privacy ───────────────────────────────────────────────────────────────────
+Backup-Registry 'HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo' 'advertising'
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo' 'Enabled' 0
+Set-Reg 'HKCU:\Software\Microsoft\InputPersonalization' 'RestrictImplicitInkCollection' 1
+Set-Reg 'HKCU:\Software\Microsoft\InputPersonalization' 'RestrictImplicitTextCollection' 1
+Set-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy' 'TailoredExperiencesWithDiagnosticDataEnabled' 0
+Write-Host "  Privacy tweaks applied" -ForegroundColor Green
+
+# ── Disable Sticky Keys popup ─────────────────────────────────────────────────
+Set-Reg 'HKCU:\Control Panel\Accessibility\StickyKeys' 'Flags' '506' 'String'
+Set-Reg 'HKCU:\Control Panel\Accessibility\ToggleKeys' 'Flags' '58'  'String'
+Set-Reg 'HKCU:\Control Panel\Accessibility\Keyboard Response' 'Flags' '122' 'String'
+Write-Host "  Sticky Keys popup disabled" -ForegroundColor Green
+
+# Restart Explorer to apply
+if (-not $DryRun) {
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+    Start-Sleep 1
+    Start-Process explorer
+    Write-Host "  Explorer restarted" -ForegroundColor Green
+}
+
+Write-Host "Tweaks complete. Backups saved to: $backupDir" -ForegroundColor Cyan

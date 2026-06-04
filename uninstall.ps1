@@ -1,112 +1,59 @@
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Reverse a WinForge run.
-
-.DESCRIPTION
-    By default, performs a SAFE rollback:
-      - Reverts tweaks (using saved registry backups via scripts/tweaks.ps1 -Mode Revert).
-      - Restores debloat allow/deny state where possible (scripts/debloat.ps1 -Mode Restore).
-      - Removes deployed dotfiles symlinks/copies if known.
-      - Leaves installed apps in place.
-
-    With -RemovePackages, also uninstalls every package recorded in state.json.
-
-.PARAMETER RemovePackages
-    Also uninstall every package WinForge installed.
-
-.PARAMETER DryRun
-    Print what would happen; change nothing.
-
-.PARAMETER Force
-    Bypass confirmation prompts.
-
-.EXAMPLE
-    .\uninstall.ps1
-.EXAMPLE
-    .\uninstall.ps1 -RemovePackages -Force
+    WinForge Uninstall — reverses all registry tweaks and optionally removes installed apps
+.PARAMETER RemoveApps
+    Also remove apps installed by WinForge (interactive confirmation per app)
+.PARAMETER BackupDir
+    Path to WinForge_Backups directory. Defaults to .\WinForge_Backups
 #>
-[CmdletBinding()]
 param(
-    [switch]$RemovePackages,
-    [switch]$DryRun,
-    [switch]$Force
+    [switch]$RemoveApps,
+    [string]$BackupDir = ".\WinForge_Backups"
 )
 
-$ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
+Write-Host "WinForge Uninstall" -ForegroundColor Cyan
 
-$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-Import-Module (Join-Path $ScriptRoot 'scripts\lib\WinForge.psm1') -Force
-Initialize-WinForge -DryRun:$DryRun
-
-$paths = Get-WinForgePaths
-Write-WinForgeBanner "WinForge uninstall"
-Write-WinForgeLog "Mode: $(if ($RemovePackages) {'FULL (config + packages)'} else {'SAFE (config only)'})" Step
-
-if (-not $Force -and -not $DryRun) {
-    $resp = Read-Host "Proceed? (y/N)"
-    if ($resp -notmatch '^[Yy]') { Write-WinForgeLog "Aborted by user." Warn; exit 0 }
-}
-
-# --- Revert tweaks -----------------------------------------------------------
-Write-WinForgeBanner "Reverting tweaks"
-& (Join-Path $ScriptRoot 'scripts\tweaks.ps1') -Mode Revert -DryRun:$DryRun
-
-# --- Restore debloated apps where possible -----------------------------------
-Write-WinForgeBanner "Restoring debloated apps"
-& (Join-Path $ScriptRoot 'scripts\debloat.ps1') -Mode Restore -DryRun:$DryRun
-
-# --- Remove dotfile copies ---------------------------------------------------
-Write-WinForgeBanner "Removing deployed configs"
-$state = Get-WinForgeState
-if ($state -and $state.PSObject.Properties['configsDeployed']) {
-    foreach ($c in $state.configsDeployed) {
-        if (Test-Path $c) {
-            if ($DryRun) {
-                Write-WinForgeLog "Would remove deployed config: $c" DryRun
-            } else {
-                try { Remove-Item -Path $c -Force -Recurse -ErrorAction Stop; Write-WinForgeLog "Removed $c" Ok }
-                catch { Write-WinForgeLog "Could not remove ${c}: $_" Warn }
-            }
-        }
+# ── Restore registry backups ──────────────────────────────────────────────────
+$backups = Get-ChildItem $BackupDir -Recurse -Filter '*.reg' -ErrorAction SilentlyContinue
+if ($backups) {
+    Write-Host "Found $($backups.Count) registry backup file(s). Restoring..." -ForegroundColor Yellow
+    foreach ($backup in $backups) {
+        Write-Host "  Importing: $($backup.FullName)"
+        reg import $backup.FullName 2>&1 | Out-Null
+        Write-Host "  Restored: $($backup.Name)" -ForegroundColor Green
     }
 } else {
-    Write-WinForgeLog "No config deployment records found in state.json" Warn
+    Write-Host "No registry backups found at: $BackupDir" -ForegroundColor Yellow
+    Write-Host "You can manually restore via:"
+    Write-Host "  Settings → System → Recovery → Open System Restore"
 }
 
-# --- Optionally remove packages ---------------------------------------------
-if ($RemovePackages) {
-    Write-WinForgeBanner "Uninstalling packages installed by WinForge"
-    if (-not $state -or -not $state.PSObject.Properties['packagesInstalled']) {
-        Write-WinForgeLog "No package records found." Warn
-    } else {
-        foreach ($p in $state.packagesInstalled) {
-            $id = $p.id; $src = $p.source
-            if ($DryRun) {
-                Write-WinForgeLog "Would uninstall [$src] $id" DryRun
-                continue
-            }
-            try {
-                switch ($src) {
-                    'winget' {
-                        Write-WinForgeLog "winget uninstall $id"
-                        Start-Process winget -ArgumentList @('uninstall','--id',$id,'--exact','--silent','--accept-source-agreements') -Wait -NoNewWindow | Out-Null
-                    }
-                    'scoop' {
-                        Write-WinForgeLog "scoop uninstall $id"
-                        & scoop uninstall $id 2>&1 | Out-Null
-                    }
-                    default { Write-WinForgeLog "Unknown source $src for $id; skipping." Warn }
-                }
-            } catch {
-                Write-WinForgeLog "Uninstall failed for ${id}: $_" Warn
-            }
-        }
+# ── Re-enable disabled features ───────────────────────────────────────────────
+try {
+    # Re-enable Bing search
+    Set-ItemProperty 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search' 'BingSearchEnabled' 1 -ErrorAction SilentlyContinue
+    Set-ItemProperty 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search' 'CortanaConsent' 1    -ErrorAction SilentlyContinue
+    Write-Host "  Bing search re-enabled" -ForegroundColor Green
+} catch {}
+
+# ── Remove deployed configs ───────────────────────────────────────────────────
+$configs = @(
+    "$env:APPDATA\espanso\match\winforge.yml",
+    "$env:USERPROFILE\Documents\AutoHotkey\winforge.ahk"
+)
+foreach ($c in $configs) {
+    if (Test-Path $c) {
+        Remove-Item $c -Force
+        Write-Host "  Removed config: $c" -ForegroundColor Green
     }
-} else {
-    Write-WinForgeLog "Packages preserved. Re-run with -RemovePackages to uninstall." Ok
 }
 
-Write-WinForgeBanner "WinForge uninstall complete"
-Write-WinForgeLog "Backups remain at: $($paths.Backups)"
-Write-WinForgeLog "Logs    remain at: $($paths.Logs)"
+# ── Restart Explorer ──────────────────────────────────────────────────────────
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+Start-Sleep 1
+Start-Process explorer
+
+Write-Host ""
+Write-Host "WinForge uninstall complete." -ForegroundColor Green
+Write-Host "A full system restart is recommended." -ForegroundColor Yellow
