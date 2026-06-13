@@ -1,6 +1,6 @@
 [
   { "id": "Microsoft.PowerToys",                  "name": "PowerToys",          "manager": "winget" },
-  { "id": "Files-Community.Files",                 "name": "Files App",          "manager": "winget" },
+  { "id": "FilesCommunity.Files",                  "name": "Files App",          "manager": "winget" },
   { "id": "voidtools.Everything",                  "name": "Everything",         "manager": "winget" },
   { "id": "Flow-Launcher.Flow-Launcher",           "name": "Flow Launcher",      "manager": "winget" },
   { "id": "Ditto.Ditto",                           "name": "Ditto",              "manager": "winget" },
@@ -11,7 +11,7 @@
   { "id": "Microsoft.WindowsTerminal",             "name": "Windows Terminal",   "manager": "winget" },
   { "id": "Microsoft.PowerShell",                  "name": "PowerShell 7",      "manager": "winget" },
   { "id": "Romanitho.Winget-AutoUpdate",           "name": "winget-autoupdate",  "manager": "winget" },
-  { "id": "RoundedTB.RoundedTB",                  "name": "RoundedTB",         "manager": "winget" },
+  { "id": "RoundedTB.Store",                      "name": "RoundedTB",         "manager": "manual" },
   { "id": "File-New-Project.EarTrumpet",           "name": "EarTrumpet",        "manager": "winget" },
   { "id": "Notion.Notion",                         "name": "Notion",            "manager": "winget" }
 ]

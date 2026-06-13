@@ -38,7 +38,7 @@ if ($OnlineCheck) {
         $t    = $file.BaseName
         $pkgs = Get-Content $file.FullName | ConvertFrom-Json
         foreach ($pkg in $pkgs) {
-            if ($pkg.manager -eq 'scoop') { continue }
+            if ($pkg.manager -ne 'winget') { continue }
             winget show --id $pkg.id --exact --accept-source-agreements 1>$null 2>&1
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "  missing: $($pkg.id) (tier ${t})" -ForegroundColor Yellow

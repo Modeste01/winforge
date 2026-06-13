@@ -148,10 +148,12 @@ function Install-Apps {
     $apps = Get-TierApps -SelectedTier $SelectedTier
     Write-Log "Installing $($apps.Count) apps for tier: $SelectedTier"
     foreach ($app in $apps) {
-        if ($app.manager -eq 'scoop') {
-            Install-ScoopApp -Name $app.id
-        } else {
-            Install-WingetApp -Id $app.id -Name $app.name
+        switch ($app.manager) {
+            'winget' { Install-WingetApp -Id $app.id -Name $app.name }
+            'scoop'  { Install-ScoopApp -Name $app.id }
+            'manual' { Write-Log "Manual install required for $($app.name): $($app.id)" 'WARN' }
+            'script' { Write-Log "Script/bootstrap step required for $($app.name): $($app.id)" 'WARN' }
+            default  { Write-Log "Unknown manager '$($app.manager)' for $($app.name); skipping" 'WARN' }
         }
     }
 }

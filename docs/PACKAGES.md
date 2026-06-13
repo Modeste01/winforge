@@ -35,7 +35,7 @@ The single source of truth is [`manifests/apps.json`](../manifests/apps.json). T
 | PowerShell 7 | `Microsoft.PowerShell` | winget | `pwsh`, the preferred host for everything else |
 | Scoop | _bootstrap_ | script | Installed by `install.ps1` via the official web installer at `https://get.scoop.sh`; not a winget package. Also enables the `extras`, `main`, `nerd-fonts`, and `versions` buckets. |
 | winget-autoupdate (WAU) | `Romanitho.Winget-AutoUpdate` | winget | Daily background app updater. Runtime verifies the id. |
-| RoundedTB *(optional)* | `TorchGM.RoundedTB` | winget | Taskbar tweaker. Optional because the winget id has drifted historically; falls back to a manual hint if not found. |
+| RoundedTB *(manual / Store)* | `RoundedTB.Store` | manual | Taskbar tweaker. Upstream recommends Microsoft Store or GitHub Releases; WinForge logs a manual install hint instead of failing on a drift-prone winget id. |
 | EarTrumpet | `File-New-Project.EarTrumpet` | winget | Per-app volume mixer for the system tray |
 
 > Browsers (Chrome / Firefox / Edge), Discord, Slack, Spotify, Notepad++, Process Explorer, OneDrive, Sysinternals, Telegram, qBittorrent, etc. are intentionally **not** in any tier — install them yourself if you want them. WinForge only installs what's on the list above.
@@ -53,17 +53,17 @@ The single source of truth is [`manifests/apps.json`](../manifests/apps.json). T
 | ExplorerPatcher *(manual, risky)* | — | manual | Restores classic Explorer/taskbar UI. **Carries breakage risk on Windows 11 feature updates** — install from `github.com/valinet/ExplorerPatcher` only after reading the upstream README. See [`SAFETY.md`](SAFETY.md). |
 | Process Lasso | `Bitsum.ProcessLasso` | winget | CPU/IO priority manager |
 | HWiNFO | `REALiX.HWiNFO` | winget | Deep hardware sensor reporting |
-| Macrium Reflect *(manual)* | `Macrium.ReflectFree` | manual | Macrium Reflect Free was discontinued. Use Macrium Reflect X (paid) or substitute Veeam Agent Free / Hasleo Backup Suite Free. |
-| FreeFileSync | `FreeFileSync.FreeFileSync` | winget | Folder comparison & sync |
+| Macrium Reflect *(manual)* | `Macrium.Reflect.Manual` | manual | Macrium Reflect Free was discontinued. Use Macrium Reflect X (paid) or substitute Veeam Agent Free / Hasleo Backup Suite Free. |
+| FreeFileSync *(manual)* | `FreeFileSync.Manual` | manual | Folder comparison & sync. Marked manual because the live Windows runner did not resolve a stable winget id. |
 | Obsidian | `Obsidian.Obsidian` | winget | Local-first markdown notes |
 | Notion | `Notion.Notion` | winget | Notes & wiki |
 | Mosh *(optional, scoop)* | `main/mosh` | scoop | Mobile shell client. Scoop is the most reliable Windows path; also runs in WSL. |
 | WinSCP | `WinSCP.WinSCP` | winget | SFTP/SCP/FTP GUI |
-| FileZilla | `TimKosse.FileZilla.Client` | winget | FTP client |
+| FileZilla *(manual)* | `FileZilla.Client` | manual | FTP client. Marked manual because the live Windows runner did not resolve a stable winget id. |
 | Rclone | `Rclone.Rclone` | winget | Cloud-storage CLI |
 | Syncthing | `Syncthing.Syncthing` | winget | Continuous peer-to-peer file sync |
 | Stremio | `Stremio.Stremio` | winget | Streaming media center |
-| AnyDesk | `AnyDeskSoftwareGmbH.AnyDesk` | winget | Remote desktop |
+| AnyDesk *(manual)* | `AnyDesk.Manual` | manual | Remote desktop. Install from the official AnyDesk download page when needed. |
 
 ## Dev +23 — toolchains, IDEs, runtimes, containers, DB GUIs
 
@@ -85,12 +85,12 @@ WSL2 is bootstrapped separately (`wsl --install -d Ubuntu-24.04`) plus the Linux
 | Go | `GoLang.Go` | winget | |
 | Java via SDKMAN | _WSL bootstrap_ | script | SDKMAN is Linux/macOS only. `configs/wsl/bootstrap-ubuntu.sh` installs SDKMAN inside WSL Ubuntu and uses it for Java/Maven/Gradle. **Not a Windows winget package.** |
 | Postman | `Postman.Postman` | winget | API client |
-| DBeaver | `dbeaver.dbeaver` | winget | Universal DB GUI |
-| TablePlus *(optional, paid)* | `TablePlus.TablePlus` | winget | Windows build is paid after trial |
-| Beekeeper Studio | `BeekeeperStudio.BeekeeperStudio` | winget | Open-source SQL GUI |
+| DBeaver *(manual)* | `dbeaver.dbeaver` | manual | Universal DB GUI. Marked manual because the live Windows runner did not resolve the winget id reliably. |
+| TablePlus *(optional, paid/manual)* | `TablePlus.Manual` | manual | Windows build is paid after trial. |
+| Beekeeper Studio *(manual)* | `BeekeeperStudio.Manual` | manual | Open-source SQL GUI. Marked manual because the live Windows runner did not resolve a stable winget id. |
 | MongoDB Compass | `MongoDB.Compass.Full` | winget | |
 | Postico | — | manual | **macOS-only** — no Windows build exists. WinForge logs this and recommends DBeaver / Beekeeper Studio / TablePlus instead. |
-| ngrok | `ngrok.ngrok` | winget | |
+| ngrok | `Ngrok.Ngrok` | winget | |
 | Cloudflare Tunnel | `Cloudflare.cloudflared` | winget | `cloudflared` |
 | Tabby | `Eugeny.Tabby` | winget | Cross-platform terminal |
 | Warp *(optional)* | `Warp.Warp` | winget | Warp Terminal for Windows is in active development; runtime verifies. Falls back to a manual hint pointing at `app.warp.dev/download` if no stable id is found. |
@@ -104,7 +104,7 @@ WSL2 is bootstrapped separately (`wsl --install -d Ubuntu-24.04`) plus the Linux
 | Jan *(manual)* | — | manual | `jan.ai` — open-source local LLM client. No stable winget id at time of writing; download from upstream. |
 | ComfyUI portable *(optional)* | _portable zip_ | script | install.ps1 offers to download the latest portable zip from `github.com/comfyanonymous/ComfyUI/releases` and unpack to `%USERPROFILE%\AI\ComfyUI`. Heavy GPU recommended. |
 | Whispering *(manual)* | — | manual | `github.com/braden-w/whispering` — local-first dictation. Install from GitHub Releases. |
-| Wispr Flow *(optional)* | `WisprFlow.WisprFlow` | winget | Voice-to-text. Runtime verifies; falls back to manual install from `flowvoice.ai`. |
+| Wispr Flow *(manual)* | `WisprFlow.Manual` | manual | Voice-to-text. Install from the official Wispr Flow site if desired. |
 | Cursor *(dedup with Dev)* | `Anysphere.Cursor` | winget | Already in Dev tier. The tier resolver dedupes by `source:id`, so Cursor is never installed twice. Listed here for completeness. |
 | Claude Desktop *(optional)* | `Anthropic.Claude` | winget | Runtime verifies; not yet GA in winget for all regions. |
 | Raycast alternative | _Flow Launcher_ | script | Raycast has no Windows build. WinForge installs **Flow Launcher** (already in Core 15) as the canonical Raycast alternative. Documentation-only entry; resolver records the choice and skips. |

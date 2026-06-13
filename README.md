@@ -39,7 +39,7 @@ WinForge is a PowerShell-based setup system that:
 | App | Package ID | Purpose |
 |-----|-----------|----------|
 | PowerToys | `Microsoft.PowerToys` | FancyZones, Run, Color Picker, Text Extractor |
-| Files App | `Files-Community.Files` | Modern file manager |
+| Files App | `FilesCommunity.Files` | Modern file manager |
 | Everything | `voidtools.Everything` | Instant file search |
 | Flow Launcher | `Flow-Launcher.Flow-Launcher` | App/file/web launcher |
 | Ditto | `Ditto.Ditto` | Clipboard history |
@@ -51,7 +51,7 @@ WinForge is a PowerShell-based setup system that:
 | PowerShell 7 | `Microsoft.PowerShell` | Modern shell |
 | Scoop | *(bootstrap)* | CLI package manager |
 | winget-autoupdate | `Romanitho.Winget-AutoUpdate` | Auto-update all packages |
-| RoundedTB | `RoundedTB.RoundedTB` | Rounded taskbar corners |
+| RoundedTB | manual / Store | Rounded taskbar corners |
 | EarTrumpet | `File-New-Project.EarTrumpet` | Per-app volume control |
 
 ### Power-User (+20 apps)

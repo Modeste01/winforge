@@ -79,8 +79,8 @@ jobs:
             $tier = $tierFile.BaseName
             $pkgs = Get-Content $tierFile.FullName | ConvertFrom-Json
             foreach ($pkg in $pkgs) {
-              if ($pkg.manager -eq 'scoop') {
-                Write-Host "skip (scoop) $($pkg.id)"
+              if ($pkg.manager -ne 'winget') {
+                Write-Host "skip ($($pkg.manager)) $($pkg.id)"
                 continue
               }
               $r = winget show --id $pkg.id --exact --accept-source-agreements 2>&1
